@@ -30,19 +30,45 @@ const SUSPENSE_CONFIG = {
 }
 
 // 🐨 create a pokemonResourceCache object
-const pokemonResourceCache = {}
-const PokemonResourceCacheContext = React.createContext(getPokemonResource)
+const PokemonResourceCacheContext = React.createContext()
 
-function getPokemonResource(name) {
-  let resource = pokemonResourceCache[name]
-  if (!resource) {
-    resource = createPokemonResource(name)
-    pokemonResourceCache[name] = resource
-  }
-  return resource
-}
 function usePokemonResourceCache() {
   return React.useContext(PokemonResourceCacheContext)
+}
+
+function PokemonResourceCacheProvider({children, cacheTime}) {
+  const cache = React.useRef({})
+  const expiration = React.useRef({})
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      for (const [name, time] of Object.entries(expiration.current)) {
+        if (time < Date.now()) {
+          delete cache.current[name]
+        }
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [cacheTime])
+  const getPokemonResource = React.useCallback(
+    name => {
+      const lowerName = name.toLowerCase()
+      let resource = cache.current[lowerName]
+      if (!resource) {
+        resource = createPokemonResource(lowerName)
+        cache.current[lowerName] = resource
+      }
+      expiration.current[lowerName] = Date.now() + cacheTime
+      return resource
+    },
+    [cacheTime],
+  )
+
+  return (
+    <PokemonResourceCacheContext.Provider value={getPokemonResource}>
+      {children}
+    </PokemonResourceCacheContext.Provider>
+  )
 }
 
 function createPokemonResource(pokemonName) {
@@ -97,4 +123,12 @@ function App() {
   )
 }
 
-export default App
+function AppWithProvider() {
+  return (
+    <PokemonResourceCacheProvider cacheTime={5000}>
+      <App />
+    </PokemonResourceCacheProvider>
+  )
+}
+
+export default AppWithProvider
