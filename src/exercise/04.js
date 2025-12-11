@@ -30,11 +30,20 @@ const SUSPENSE_CONFIG = {
 }
 
 // 🐨 create a pokemonResourceCache object
+const pokemonResourceCache = {}
+const PokemonResourceCacheContext = React.createContext(getPokemonResource)
 
-// 🐨 create a getPokemonResource function which accepts a name checks the cache
-// for an existing resource. If there is none, then it creates a resource
-// and inserts it into the cache. Finally the function should return the
-// resource.
+function getPokemonResource(name) {
+  let resource = pokemonResourceCache[name]
+  if (!resource) {
+    resource = createPokemonResource(name)
+    pokemonResourceCache[name] = resource
+  }
+  return resource
+}
+function usePokemonResourceCache() {
+  return React.useContext(PokemonResourceCacheContext)
+}
 
 function createPokemonResource(pokemonName) {
   return createResource(fetchPokemon(pokemonName))
@@ -44,7 +53,7 @@ function App() {
   const [pokemonName, setPokemonName] = React.useState('')
   const [startTransition, isPending] = React.useTransition(SUSPENSE_CONFIG)
   const [pokemonResource, setPokemonResource] = React.useState(null)
-
+  const getPokemonResource = usePokemonResourceCache()
   React.useEffect(() => {
     if (!pokemonName) {
       setPokemonResource(null)
@@ -52,9 +61,9 @@ function App() {
     }
     startTransition(() => {
       // 🐨 change this to getPokemonResource instead
-      setPokemonResource(createPokemonResource(pokemonName))
+      setPokemonResource(getPokemonResource(pokemonName))
     })
-  }, [pokemonName, startTransition])
+  }, [pokemonName, startTransition, getPokemonResource])
 
   function handleSubmit(newPokemonName) {
     setPokemonName(newPokemonName)
